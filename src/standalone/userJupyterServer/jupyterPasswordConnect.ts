@@ -109,32 +109,42 @@ export class JupyterPasswordConnect {
         // First determine if we need a password. A request for the base URL with /tree? should return a 302 if we do.
         const requiresPassword = await this.needPassword(options.url);
 
+
         if (requiresPassword || options.isTokenEmpty) {
             // Get password first
             if (requiresPassword && options.isTokenEmpty) {
-                const input = window.createInputBox();
-                options.disposables.push(input);
-                input.title = DataScience.jupyterSelectPasswordTitle;
-                input.placeholder = DataScience.jupyterSelectPasswordPrompt;
-                input.ignoreFocusOut = true;
-                input.password = true;
-                input.validationMessage = options.validationErrorMessage || '';
-                input.show();
-                input.buttons = [QuickInputButtons.Back];
-                userPassword = await new Promise<string>((resolve, reject) => {
-                    input.onDidTriggerButton(
-                        (e) => {
-                            if (e === QuickInputButtons.Back) {
-                                reject(InputFlowAction.back);
-                            }
-                        },
-                        this,
-                        options.disposables
-                    );
-                    input.onDidChangeValue(() => (input.validationMessage = ''), this, options.disposables);
-                    input.onDidAccept(() => resolve(input.value), this, options.disposables);
-                    input.onDidHide(() => reject(InputFlowAction.cancel), this, options.disposables);
-                });
+                // Check if password is already provided in the URL
+                const urlObj = new URL(options.url);
+                const passwordFromUrl = urlObj.searchParams.get('password');
+                // If password is provided in the URL, use it directly
+                if (passwordFromUrl) {
+                    userPassword = passwordFromUrl;
+                } else {
+                    // Otherwise prompt the user for a password
+                    const input = window.createInputBox();
+                    options.disposables.push(input);
+                    input.title = DataScience.jupyterSelectPasswordTitle;
+                    input.placeholder = DataScience.jupyterSelectPasswordPrompt;
+                    input.ignoreFocusOut = true;
+                    input.password = true;
+                    input.validationMessage = options.validationErrorMessage || '';
+                    input.show();
+                    input.buttons = [QuickInputButtons.Back];
+                    userPassword = await new Promise<string>((resolve, reject) => {
+                        input.onDidTriggerButton(
+                            (e) => {
+                                if (e === QuickInputButtons.Back) {
+                                    reject(InputFlowAction.back);
+                                }
+                            },
+                            this,
+                            options.disposables
+                        );
+                        input.onDidChangeValue(() => (input.validationMessage = ''), this, options.disposables);
+                        input.onDidAccept(() => resolve(input.value), this, options.disposables);
+                        input.onDidHide(() => reject(InputFlowAction.cancel), this, options.disposables);
+                    });
+                }
             }
 
             if (typeof userPassword === undefined && !userPassword && options.isTokenEmpty) {
